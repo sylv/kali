@@ -1,0 +1,11 @@
+[package]
+name = "kali"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sqlx = { version = "0.8", default-features = false, features = ["sqlite"] }
+
+[dev-dependencies]
+anyhow = "1.0.98"
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }

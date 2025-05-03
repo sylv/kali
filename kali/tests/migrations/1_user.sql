@@ -1,0 +1,5 @@
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    banned INTEGER DEFAULT 0
+) STRICT;
