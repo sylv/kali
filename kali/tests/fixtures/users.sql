@@ -1,11 +1,8 @@
 INSERT INTO users (id, username, banned) VALUES
-(1, 'alice', 0),
-(2, 'bob', 0),
-(3, 'charlie', 1),
-(4, 'dave', 0),
-(5, 'eve', 1),
-(6, 'frank', 0),
-(7, 'grace', 1),
-(8, 'heidi', 0),
-(9, 'ivan', 1),
-(10, 'judy', 0);
+    (1, 'holden', 0),
+    (2, 'avasarala', 0),
+    (3, 'bobbie', 1),
+    (4, 'draper', 0),
+    (5, 'miller', 1),
+    (6, 'amos', 0),
+    (7, 'naomi', 0);

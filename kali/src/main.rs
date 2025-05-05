@@ -1,6 +1,6 @@
 use kali::{
     column::{Column, ColumnExpr},
-    query_builder::{Ordering, QueryBuilder},
+    query_builder::QueryBuilder,
 };
 use sqlx::prelude::FromRow;
 
@@ -10,15 +10,19 @@ pub struct User {
     pub username: String,
 }
 
+#[allow(non_upper_case_globals)]
 impl User {
     const TABLE_NAME: &'static str = "users";
     const COLUMNS: &'static [UserColumn] = &[UserColumn::Id, UserColumn::Username];
+
+    const Id: UserColumn = UserColumn::Id;
+    const Username: UserColumn = UserColumn::Username;
 
     pub async fn fetch_one<'e, 'c: 'e, E>(id: i64, executor: E) -> Result<Self, sqlx::Error>
     where
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
     {
-        QueryBuilder::new(User::TABLE_NAME)
+        QueryBuilder::select_from(User::TABLE_NAME)
             .columns(User::COLUMNS)
             .filter(UserColumn::Id.eq(id))
             .fetch_one(executor)
@@ -32,7 +36,7 @@ impl User {
     where
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
     {
-        QueryBuilder::new(User::TABLE_NAME)
+        QueryBuilder::select_from(User::TABLE_NAME)
             .columns(User::COLUMNS)
             .filter(UserColumn::Id.eq(id))
             .fetch_optional(executor)
@@ -43,7 +47,7 @@ impl User {
     where
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
     {
-        QueryBuilder::new(User::TABLE_NAME)
+        QueryBuilder::select_from(User::TABLE_NAME)
             .columns(User::COLUMNS)
             .fetch_all(executor)
             .await
@@ -65,21 +69,16 @@ impl Column for UserColumn {
 }
 
 pub fn main() {
-    let (sql, values) = QueryBuilder::new("users")
-        .columns(&[UserColumn::Id, UserColumn::Username])
-        .filter(UserColumn::Id.in_list(vec![1, 2, 3]))
-        .filter(UserColumn::Username.eq("admin"))
-        .order_by(UserColumn::Username, Ordering::Asc)
-        .order_by(UserColumn::Id, Ordering::DescNullsFirst)
-        .to_sql();
+    let qb = QueryBuilder::select_from("users")
+        .columns(&[User::Id, User::Username])
+        .filter(User::Id.eq(1))
+        .filter(User::Username.eq("admin"))
+        .order_by(User::Username.asc())
+        .order_by(User::Id.desc_nulls_first())
+        .limit(10)
+        .offset(5);
 
+    let (sql, values) = qb.to_sql();
     println!("{}", sql);
     println!("{:?}", values);
-    // let result: User = QueryBuilder::new("users")
-    //     .filter(UserColumn::Id.in_list(vec![1, 2, 3]))
-    //     .filter(UserColumn::Username.eq("admin"))
-    //     .order_by(UserColumn::Username, Ordering::Asc)
-    //     .order_by(UserColumn::Id, Ordering::DescNullsFirst)
-    //     .fetch_one(&db)
-    //     .await?;
 }
