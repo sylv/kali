@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 sqlx = { version = "0.8", default-features = false, features = ["sqlite"] }
+tracing = { version = "0.1", default-features = false }
+kali-macros = { path = "../kali-macros" }
 
 [dev-dependencies]
-anyhow = "1.0.98"
+anyhow = "1.0"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }

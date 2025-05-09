@@ -1,5 +1,10 @@
-use crate::{bindable::Bindable, column::Column, expr::Expr, ordering::Ordering};
+use super::{builder::bindable::Bindable, builder::expr::Expr, builder::ordering::ColumnOrdering};
+use crate::column::Column;
 use std::marker::PhantomData;
+
+pub mod bindable;
+pub mod expr;
+pub mod ordering;
 
 pub struct Select;
 pub struct Insert;
@@ -72,7 +77,7 @@ pub struct QueryBuilder<'a, T, C: Column> {
     filter: Option<Expr<'a, C>>,
     limit: Option<i64>,
     offset: Option<i64>,
-    order_by: Vec<Ordering<C>>,
+    order_by: Vec<ColumnOrdering<C>>,
     _type: PhantomData<T>,
 }
 
@@ -84,7 +89,7 @@ impl<'a, C: Column> QueryBuilder<'a, Select, C> {
         self
     }
 
-    pub fn order_by(mut self, ordering: Ordering<C>) -> Self {
+    pub fn order_by(mut self, ordering: ColumnOrdering<C>) -> Self {
         self.order_by.push(ordering);
         self
     }
@@ -352,11 +357,15 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         (query, values)
     }
 
-    pub async fn fetch_one<'e, 'c: 'e, E, S>(self, executor: E) -> Result<S, sqlx::Error>
+    pub async fn fetch_one<'e, E, S>(mut self, executor: E) -> Result<S, sqlx::Error>
     where
-        E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
+        E: 'e + sqlx::Executor<'e, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
+        if self.limit.is_none() {
+            self.limit = Some(1);
+        }
+
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
         for value in values.iter() {
@@ -370,13 +379,17 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
     }
 
     pub async fn fetch_optional<'e, 'c: 'e, E, S>(
-        self,
+        mut self,
         executor: E,
     ) -> Result<Option<S>, sqlx::Error>
     where
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
+        if self.limit.is_none() {
+            self.limit = Some(1);
+        }
+
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
         for value in values.iter() {
@@ -397,6 +410,13 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
+        if self.limit.is_none() {
+            // todo: a way to disable this
+            tracing::warn!(
+                "No limit set for fetch_all query, this may result in a large number of rows being returned"
+            );
+        }
+
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
         for value in values.iter() {

@@ -1,4 +1,4 @@
-use crate::{bindable::Bindable, column::Column};
+use crate::{builder::bindable::Bindable, column::Column};
 use std::borrow::Cow;
 
 pub enum Expr<'a, C: Column> {

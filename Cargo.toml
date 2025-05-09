@@ -1,2 +1,2 @@
 [workspace]
-members = ["kali"]
+members = ["kali", "kali-macros"]

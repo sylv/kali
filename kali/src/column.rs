@@ -1,4 +1,4 @@
-use crate::{bindable::Bindable, expr::Expr, ordering::Ordering};
+use crate::{builder::bindable::Bindable, builder::expr::Expr, builder::ordering::ColumnOrdering};
 
 pub trait Column: Send + Sync {
     fn raw(&self) -> &str;
@@ -18,12 +18,12 @@ pub trait ColumnExpr<'a, C: Column> {
     fn in_list<V: 'a + Bindable>(self, values: Vec<V>) -> Expr<'a, C>;
     fn is_null(self) -> Expr<'a, C>;
 
-    fn asc(self) -> Ordering<C>;
-    fn desc(self) -> Ordering<C>;
-    fn asc_nulls_first(self) -> Ordering<C>;
-    fn asc_nulls_last(self) -> Ordering<C>;
-    fn desc_nulls_first(self) -> Ordering<C>;
-    fn desc_nulls_last(self) -> Ordering<C>;
+    fn asc(self) -> ColumnOrdering<C>;
+    fn desc(self) -> ColumnOrdering<C>;
+    fn asc_nulls_first(self) -> ColumnOrdering<C>;
+    fn asc_nulls_last(self) -> ColumnOrdering<C>;
+    fn desc_nulls_first(self) -> ColumnOrdering<C>;
+    fn desc_nulls_last(self) -> ColumnOrdering<C>;
 }
 
 impl<'a, C: Column> ColumnExpr<'a, C> for C {
@@ -55,27 +55,27 @@ impl<'a, C: Column> ColumnExpr<'a, C> for C {
         Expr::In(self, values)
     }
 
-    fn asc(self) -> Ordering<C> {
-        Ordering::Asc(self)
+    fn asc(self) -> ColumnOrdering<C> {
+        ColumnOrdering::Asc(self)
     }
 
-    fn desc(self) -> Ordering<C> {
-        Ordering::Desc(self)
+    fn desc(self) -> ColumnOrdering<C> {
+        ColumnOrdering::Desc(self)
     }
 
-    fn asc_nulls_first(self) -> Ordering<C> {
-        Ordering::AscNullsFirst(self)
+    fn asc_nulls_first(self) -> ColumnOrdering<C> {
+        ColumnOrdering::AscNullsFirst(self)
     }
 
-    fn asc_nulls_last(self) -> Ordering<C> {
-        Ordering::AscNullsLast(self)
+    fn asc_nulls_last(self) -> ColumnOrdering<C> {
+        ColumnOrdering::AscNullsLast(self)
     }
 
-    fn desc_nulls_first(self) -> Ordering<C> {
-        Ordering::DescNullsFirst(self)
+    fn desc_nulls_first(self) -> ColumnOrdering<C> {
+        ColumnOrdering::DescNullsFirst(self)
     }
 
-    fn desc_nulls_last(self) -> Ordering<C> {
-        Ordering::DescNullsLast(self)
+    fn desc_nulls_last(self) -> ColumnOrdering<C> {
+        ColumnOrdering::DescNullsLast(self)
     }
 }

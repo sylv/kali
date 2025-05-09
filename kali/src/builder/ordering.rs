@@ -1,6 +1,6 @@
 use crate::column::Column;
 
-pub enum Ordering<T: Column> {
+pub enum ColumnOrdering<T: Column> {
     Asc(T),
     Desc(T),
     AscNullsFirst(T),
@@ -9,30 +9,30 @@ pub enum Ordering<T: Column> {
     DescNullsLast(T),
 }
 
-impl<T: Column> Ordering<T> {
+impl<T: Column> ColumnOrdering<T> {
     pub fn write(&self, f: &mut String) {
         match self {
-            Ordering::Asc(column) => {
+            ColumnOrdering::Asc(column) => {
                 column.write(f);
                 f.push_str(" ASC");
             }
-            Ordering::Desc(column) => {
+            ColumnOrdering::Desc(column) => {
                 column.write(f);
                 f.push_str(" DESC");
             }
-            Ordering::AscNullsFirst(column) => {
+            ColumnOrdering::AscNullsFirst(column) => {
                 column.write(f);
                 f.push_str(" ASC NULLS FIRST");
             }
-            Ordering::AscNullsLast(column) => {
+            ColumnOrdering::AscNullsLast(column) => {
                 column.write(f);
                 f.push_str(" ASC NULLS LAST");
             }
-            Ordering::DescNullsFirst(column) => {
+            ColumnOrdering::DescNullsFirst(column) => {
                 column.write(f);
                 f.push_str(" DESC NULLS FIRST");
             }
-            Ordering::DescNullsLast(column) => {
+            ColumnOrdering::DescNullsLast(column) => {
                 column.write(f);
                 f.push_str(" DESC NULLS LAST");
             }
