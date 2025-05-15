@@ -1,2 +1,25 @@
+[package]
+name = "kali"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+sqlx = { version = "0.8", default-features = false, features = ["sqlite"] }
+tracing = { version = "0.1", default-features = false }
+kali-macros = { version = "0.1.0", path = "kali-macros" }
+
+[dev-dependencies]
+anyhow = "1.0"
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
+
 [workspace]
-members = ["kali", "kali-macros"]
+members = [".", "kali-macros"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "A query builder and orm-ish crate built on sqlx"
+repository = "https://github.com/sylv/kali"

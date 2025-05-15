@@ -1,7 +1,10 @@
 [package]
 name = "kali-macros"
-version = "0.1.0"
-edition = "2024"
+description = "Macros for kali, a query builder and orm-ish crate built on sqlx"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 
 [lib]
 proc-macro = true
