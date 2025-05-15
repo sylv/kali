@@ -1,25 +1,76 @@
-use kali::{builder::QueryBuilder, column::ColumnExpr};
+use kali::column::ColumnExpr;
 use kali_macros::entity;
 use sqlx::prelude::FromRow;
 
-#[entity]
+#[entity("users")]
 #[derive(Debug, FromRow)]
 pub struct User {
     pub id: i64,
+
     pub username: String,
+
+    #[relation(referenced_by = user)]
+    pub profile: Reference<UserProfile>,
+
+    #[relation(referenced_by = user)]
+    pub posts: Collection<Post>,
 }
 
-pub fn main() {
-    let qb = QueryBuilder::select_from(User::TABLE_NAME)
-        .columns(&[User::Id, User::Username])
-        .filter(User::Id.eq(1))
-        .filter(User::Username.eq("admin"))
-        .order_by(User::Username.asc())
-        .order_by(User::Id.desc_nulls_first())
-        .limit(10)
-        .offset(5);
+#[entity("user_profiles")]
+#[derive(Debug, FromRow)]
+pub struct UserProfile {
+    #[primary_key]
+    pub user_id: i64,
 
-    let (sql, values) = qb.to_sql();
-    println!("{}", sql);
-    println!("{:?}", values);
+    pub bio: String,
+
+    #[relation(foreign_key = user_id)]
+    pub user: Reference<User>,
+}
+
+#[entity("posts")]
+#[derive(Debug, FromRow)]
+pub struct Post {
+    #[primary_key]
+    pub id: i64,
+
+    pub user_id: i64,
+
+    pub content: String,
+
+    #[relation(foreign_key = user_id, references = id)]
+    pub user: Reference<User>,
+}
+
+#[tokio::main]
+pub async fn main() {
+    tracing_subscriber::fmt::init();
+
+    let profile = UserProfile {
+        user_id: 1,
+        bio: "Hello, world!".to_string(),
+    };
+
+    println!("{}", profile.__primary_key_value());
+
+    // let db = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
+
+    // migrate!("tests/migrations")
+    //     .run(&db)
+    //     .await
+    //     .expect("Failed to run migrations");
+
+    // let user = profile.user().load(&db).await.expect("Failed to load user");
+    // println!("Loaded user: {:?}", user);
+
+    // let posts = user
+    //     .posts()
+    //     .load_all(&db)
+    //     .await
+    //     .expect("Failed to load posts");
+
+    // println!("Loaded {} posts:", posts.len());
+    // for post in posts {
+    //     println!(" - Post {}: {}", post.id, post.content);
+    // }
 }

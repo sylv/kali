@@ -6,13 +6,14 @@ a query builder and orm-ish crate for rust, built on sqlx
 
 ## todo
 
-- support for loading relations
-  - load, unwrap, try_unwrap
-  - stream, load_all
-- codegen
+- support for joins
+- support for caching relations
+  - `CachedRef<T>` and `CachedCollection<T>`
+  - `try_unwrap()` and `unwrap()`
+  - `load()` and `load_all()` use cached data when available, otherwise loads and caches
+- codegen cli
   - generate entities from an existing database
-  - avoids the entities getting out of sync without having to do migrations ourselves
-  - if this route, taking codegen style from tonic might be better than outputting to src
+  - avoids the entities getting out of sync with the database
   - allow mapping types
     - option 1: `#[map_type(bool, optional_transformer)]` which is read by the codegen before overwriting the file
     - option 2: toml config file that specifies custom mappings
@@ -28,11 +29,11 @@ struct User {
     #[primary_key]
     id: i32,
 
-    // #[referenced_by(field = user)]
-    // profile: Ref<Profile>,
+    #[referenced_by(field = user, references = id)]
+    profile: Ref<Profile>,
 
-    // #[referenced_by(field = author)]
-    // posts: Collection<Post>
+    #[referenced_by(field = author_id, references = id)]
+    posts: Collection<Post>
 }
 
 #[derive(Debug)]
@@ -43,8 +44,8 @@ struct Profile {
 
     nickname: Option<String>,
     
-    // #[foreign_key(field = id, references = id)]
-    // user: Ref<User>
+    #[foreign_key(field = id, references = id)]
+    user: Ref<User>
 }
 
 #[derive(Debug)]
@@ -59,8 +60,8 @@ struct Post {
 
     author_id: i32,
 
-    // #[foreign_key(field = author_id, references = id)]
-    // author: Ref<User>
+    #[foreign_key(field = author_id, references = id)]
+    author: Ref<User>
 }
 
 // Finding an entity
@@ -91,6 +92,7 @@ let found_user = User::query()
     .where(User::Id.gt(1))
     .order_by(User::Id.asc())
     .fetch_one(&db)
+    .await?;
 
 // // Updating an entity
 // let mut profile = Profile::fetch_one(&db, 1).await?;

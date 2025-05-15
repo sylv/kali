@@ -1,10 +1,11 @@
-use super::{builder::bindable::Bindable, builder::expr::Expr, builder::ordering::ColumnOrdering};
+use super::{builder::expr::Expr, builder::ordering::ColumnOrdering};
 use crate::column::Column;
 use std::marker::PhantomData;
+use value::Value;
 
-pub mod bindable;
 pub mod expr;
 pub mod ordering;
+pub mod value;
 
 pub struct Select;
 pub struct Insert;
@@ -12,6 +13,7 @@ pub struct Update;
 pub struct Delete;
 pub struct OnConflicted;
 
+#[derive(PartialEq, Eq)]
 enum QueryKind {
     Select,
     Insert,
@@ -66,19 +68,19 @@ pub enum OnConflict {
     Update,
 }
 
-pub struct QueryBuilder<'a, T, C: Column> {
+pub struct QueryBuilder<'a, S, C: Column> {
     table: &'a str,
     kind: QueryKind,
     columns: Option<&'a [C]>,
-    values: Option<Vec<(C, Box<dyn Bindable + 'a>)>>,
-    set: Option<Vec<(C, Box<dyn Bindable + 'a>)>>,
+    values: Option<Vec<(C, Value)>>,
+    set: Option<Vec<(C, Value)>>,
     on_conflict: Option<(Vec<C>, OnConflict)>,
     returning: Option<&'a [C]>,
     filter: Option<Expr<'a, C>>,
     limit: Option<i64>,
     offset: Option<i64>,
     order_by: Vec<ColumnOrdering<C>>,
-    _type: PhantomData<T>,
+    _type: PhantomData<S>,
 }
 
 impl<'a, C: Column> QueryBuilder<'a, Select, C> {
@@ -108,11 +110,11 @@ impl<'a, C: Column> QueryBuilder<'a, Select, C> {
 impl<'a, C: Column> QueryBuilder<'a, Insert, C> {
     generic_builder!(insert_into, QueryKind::Insert);
 
-    pub fn value<V: Bindable + 'a>(mut self, col: C, value: V) -> Self {
+    pub fn value<V: Into<Value> + 'a>(mut self, col: C, value: V) -> Self {
         if let Some(values) = &mut self.values {
-            values.push((col, Box::new(value)));
+            values.push((col, value.into()));
         } else {
-            self.values = Some(vec![(col, Box::new(value))]);
+            self.values = Some(vec![(col, value.into())]);
         }
 
         self
@@ -148,13 +150,13 @@ impl<'a, C: Column> QueryBuilder<'a, Insert, C> {
 
 impl<'a, C: Column> QueryBuilder<'a, OnConflicted, C> {
     /// Only valid after `on_conflict`
-    pub fn set<V: Bindable + 'a>(mut self, column: C, value: V) -> Self {
+    pub fn set<V: Into<Value>>(mut self, column: C, value: V) -> Self {
         if !self.on_conflict.is_some() {
             // todo: should use typestate pattern to prevent this at compile time
             panic!("Cannot set value without an ON CONFLICT clause");
         }
 
-        let value = Box::new(value);
+        let value = value.into();
         if let Some(set) = &mut self.set {
             set.push((column, value));
         } else {
@@ -172,8 +174,8 @@ impl<'a, C: Column> QueryBuilder<'a, OnConflicted, C> {
 impl<'a, C: Column> QueryBuilder<'a, Update, C> {
     generic_builder!(update, QueryKind::Update);
 
-    pub fn set<V: Bindable + 'a>(mut self, column: C, value: V) -> Self {
-        let value = Box::new(value);
+    pub fn set<V: Into<Value>>(mut self, column: C, value: V) -> Self {
+        let value = value.into();
         if let Some(set) = &mut self.set {
             set.push((column, value));
         } else {
@@ -217,7 +219,7 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         self
     }
 
-    pub fn to_sql(self) -> (String, Vec<Box<dyn Bindable + 'a>>) {
+    pub fn to_sql(self) -> (String, Vec<Value>) {
         let mut values = Vec::new();
         let mut query = match self.kind {
             QueryKind::Select => "SELECT ".to_string(),
@@ -362,13 +364,13 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         E: 'e + sqlx::Executor<'e, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
-        if self.limit.is_none() {
+        if self.limit.is_none() && self.kind == QueryKind::Select {
             self.limit = Some(1);
         }
 
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
-        for value in values.iter() {
+        for value in values.into_iter() {
             query = value.bind_to(query);
         }
 
@@ -386,13 +388,13 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
-        if self.limit.is_none() {
+        if self.limit.is_none() && self.kind == QueryKind::Select {
             self.limit = Some(1);
         }
 
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
-        for value in values.iter() {
+        for value in values.into_iter() {
             query = value.bind_to(query);
         }
 
@@ -410,16 +412,9 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
         E: 'e + sqlx::Executor<'c, Database = sqlx::Sqlite>,
         S: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
     {
-        if self.limit.is_none() {
-            // todo: a way to disable this
-            tracing::warn!(
-                "No limit set for fetch_all query, this may result in a large number of rows being returned"
-            );
-        }
-
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
-        for value in values.iter() {
+        for value in values.into_iter() {
             query = value.bind_to(query);
         }
 
@@ -439,7 +434,7 @@ impl<'a, T, C: Column> QueryBuilder<'a, T, C> {
     {
         let (query, values) = self.to_sql();
         let mut query = sqlx::query(&query);
-        for value in values.iter() {
+        for value in values.into_iter() {
             query = value.bind_to(query);
         }
 

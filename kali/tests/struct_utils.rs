@@ -1,4 +1,4 @@
-use kali::column::ColumnExpr;
+use kali::{column::ColumnExpr, entity::Entity};
 use sqlx::SqlitePool;
 
 #[kali::entity("users")]

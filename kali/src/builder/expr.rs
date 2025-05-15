@@ -1,15 +1,17 @@
-use crate::{builder::bindable::Bindable, column::Column};
+use super::value::Value;
+use crate::column::Column;
 use std::borrow::Cow;
 
+#[derive(Clone)]
 pub enum Expr<'a, C: Column> {
-    Equal(C, Box<dyn Bindable + 'a>),
-    Gt(C, Box<dyn Bindable + 'a>),
-    Lt(C, Box<dyn Bindable + 'a>),
+    Equal(C, Value),
+    Gt(C, Value),
+    Lt(C, Value),
+    Like(C, Value),
+    In(C, Vec<Value>),
+    Raw(Cow<'a, str>),
     And(Box<Expr<'a, C>>, Box<Expr<'a, C>>),
     Or(Box<Expr<'a, C>>, Box<Expr<'a, C>>),
-    Like(C, Box<dyn Bindable + 'a>),
-    In(C, Vec<Box<dyn Bindable + 'a>>),
-    Raw(Cow<'a, str>),
 }
 
 impl<'a, C: Column> Expr<'a, C> {
@@ -29,13 +31,17 @@ impl<'a, C: Column> Expr<'a, C> {
         Expr::Or(Box::new(left), Box::new(right))
     }
 
-    pub(crate) fn write(self, f: &mut String, values: &mut Vec<Box<dyn Bindable + 'a>>) {
+    pub(crate) fn write(self, f: &mut String, values: &mut Vec<Value>) {
         match self {
             Expr::Equal(column, value) => {
                 column.write(f);
-                // todo: handle "IS NULL"
-                f.push_str(" = ?");
-                values.push(value);
+                match value {
+                    Value::Null => f.push_str(" IS NULL"),
+                    _ => {
+                        f.push_str(" = ?");
+                        values.push(value);
+                    }
+                }
             }
             Expr::Gt(column, value) => {
                 column.write(f);

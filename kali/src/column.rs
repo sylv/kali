@@ -1,21 +1,21 @@
-use crate::{builder::bindable::Bindable, builder::expr::Expr, builder::ordering::ColumnOrdering};
+use crate::builder::{expr::Expr, ordering::ColumnOrdering, value::Value};
 
-pub trait Column: Send + Sync {
-    fn raw(&self) -> &str;
+pub trait Column: Copy + Send + Sync {
+    fn to_col_name(&self) -> &str;
 
     fn write(&self, f: &mut String) {
         f.push('"');
-        f.push_str(self.raw());
+        f.push_str(self.to_col_name());
         f.push('"');
     }
 }
 
 pub trait ColumnExpr<'a, C: Column> {
-    fn eq<V: 'a + Bindable>(self, value: V) -> Expr<'a, C>;
-    fn gt<V: 'a + Bindable>(self, value: V) -> Expr<'a, C>;
-    fn lt<V: 'a + Bindable>(self, value: V) -> Expr<'a, C>;
-    fn like<V: 'a + Bindable>(self, value: V) -> Expr<'a, C>;
-    fn in_list<V: 'a + Bindable>(self, values: Vec<V>) -> Expr<'a, C>;
+    fn eq<V: Into<Value>>(self, value: V) -> Expr<'a, C>;
+    fn gt<V: Into<Value>>(self, value: V) -> Expr<'a, C>;
+    fn lt<V: Into<Value>>(self, value: V) -> Expr<'a, C>;
+    fn like<V: Into<Value>>(self, value: V) -> Expr<'a, C>;
+    fn in_list<V: Into<Value>>(self, values: Vec<V>) -> Expr<'a, C>;
     fn is_null(self) -> Expr<'a, C>;
 
     fn asc(self) -> ColumnOrdering<C>;
@@ -27,32 +27,29 @@ pub trait ColumnExpr<'a, C: Column> {
 }
 
 impl<'a, C: Column> ColumnExpr<'a, C> for C {
-    fn eq<V: 'a + Bindable>(self, value: V) -> Expr<'a, C> {
-        Expr::Equal(self, Box::new(value))
+    fn eq<V: Into<Value>>(self, value: V) -> Expr<'a, C> {
+        Expr::Equal(self, value.into())
     }
 
-    fn gt<V: 'a + Bindable>(self, value: V) -> Expr<'a, C> {
-        Expr::Gt(self, Box::new(value))
+    fn gt<V: Into<Value>>(self, value: V) -> Expr<'a, C> {
+        Expr::Gt(self, value.into())
     }
 
-    fn lt<V: 'a + Bindable>(self, value: V) -> Expr<'a, C> {
-        Expr::Lt(self, Box::new(value))
+    fn lt<V: Into<Value>>(self, value: V) -> Expr<'a, C> {
+        Expr::Lt(self, value.into())
+    }
+
+    fn like<V: Into<Value>>(self, value: V) -> Expr<'a, C> {
+        Expr::Like(self, value.into())
+    }
+
+    fn in_list<V: Into<Value>>(self, values: Vec<V>) -> Expr<'a, C> {
+        let values = values.into_iter().map(|v| v.into()).collect();
+        Expr::In(self, values)
     }
 
     fn is_null(self) -> Expr<'a, C> {
-        Expr::Equal(self, Box::new(None::<i32>))
-    }
-
-    fn like<V: 'a + Bindable>(self, value: V) -> Expr<'a, C> {
-        Expr::Like(self, Box::new(value))
-    }
-
-    fn in_list<V: 'a + Bindable>(self, values: Vec<V>) -> Expr<'a, C> {
-        let values = values
-            .into_iter()
-            .map(|v| Box::new(v) as Box<dyn Bindable + 'a>)
-            .collect();
-        Expr::In(self, values)
+        Expr::Equal(self, Value::Null)
     }
 
     fn asc(self) -> ColumnOrdering<C> {
